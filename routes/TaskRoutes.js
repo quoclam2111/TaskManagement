@@ -20,4 +20,10 @@ router.get('/:taskid', taskController.getTask);
 router.put('/:taskid', validateTask, taskController.updateTask);
 router.delete('/:taskid', taskController.deleteTask);
 
+// update Status
+router.patch('/:taskid/status', taskController.updateStatus)
+
+// filter task
+router.get('/filter', taskController.filterTasks)
+
 module.exports = router;

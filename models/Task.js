@@ -237,6 +237,59 @@ class Task {
       throw error;
     }
   }
+  // Cập nhật status của task
+  static async updateStatus(taskid, status) {
+    try {
+      const [result] = await db.execute(
+        'UPDATE task SET status = ? WHERE taskid = ?',
+        [status, taskid]
+      );
+      return result.affectedRows > 0;
+    } catch (error) {
+      throw error;
+    }
+  }
+  
+  // Lọc tasks theo nhiều điều kiện
+  // filter = { userId, status, priority, groupID }
+  static async filterTasks(filter) {
+    try {
+      const conditions = [];
+      const values = [];
+  
+      if (filter.userId) {
+        conditions.push('t.id = ?');
+        values.push(filter.userId);
+      }
+      if (filter.status) {
+        conditions.push('t.status = ?');
+        values.push(filter.status);
+      }
+      if (filter.priority) {
+        conditions.push('t.priority = ?');
+        values.push(filter.priority);
+      }
+      if (filter.groupID) {
+        conditions.push('t.groupID = ?');
+        values.push(filter.groupID);
+      }
+  
+      let query = `SELECT t.*, g.groupName 
+                   FROM task t 
+                   LEFT JOIN \`group\` g ON t.groupID = g.groupID`;
+      if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+      }
+      query += ' ORDER BY t.priority DESC, t.taskid';
+  
+      const [rows] = await db.execute(query, values);
+      return rows;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
+
+
 
 module.exports = Task;

@@ -259,3 +259,109 @@ exports.getTaskStats = CatchAsync(async (req, res, next) => {
     }
   });
 });
+
+// Cập nhật status của task
+exports.updateStatus = CatchAsync(async (req, res, next) => {
+  const userId = req.user.id;
+  const { taskid } = req.params;
+  const { status } = req.body;
+
+  // 1. Validate status
+  const validStatuses = ['Pending', 'In Progress', 'Completed'];
+  if (!validStatuses.includes(status)) {
+    return next(new AppError('Invalid status', 400));
+  }
+
+  // 2. Lấy task
+  const task = await Task.findById(taskid);
+  if (!task) {
+    return next(new AppError('Task not found', 404));
+  }
+
+  // 3. Kiểm tra quyền: chỉ owner hoặc group leader mới được cập nhật
+  const isOwner = task.id === userId;
+  let isLeader = false;
+  if (task.groupID) {
+    isLeader = await Group.isLeader(task.groupID, userId);
+  }
+
+  if (!isOwner && !isLeader) {
+    return next(new AppError('You do not have permission to update this task', 403));
+  }
+
+  // 4. Cập nhật status
+  const updated = await Task.updateStatus(taskid, status );
+  if (!updated) {
+    return next(new AppError('No changes made', 400));
+  }
+
+  const updatedTask = await Task.findById(taskid);
+
+  // 5. Trả về kết quả
+  res.status(200).json({
+    status: 'success',
+    data: {
+      task: updatedTask
+    }
+  });
+});
+
+// Lọc tasks theo nhiều điều kiện: status, priority, groupID, keyword
+exports.filterTasks = CatchAsync(async (req, res, next) => {
+  const userId = req.user.id;
+  const { status, priority, groupID, keyword } = req.query;
+
+  // 1. Validate các giá trị nếu có
+  const validStatuses = ['Pending', 'In Progress', 'Completed'];
+  if (status && !validStatuses.includes(status)) {
+    return next(new AppError('Invalid status', 400));
+  }
+  if (priority && (priority < 1 || priority > 5)) {
+    return next(new AppError('Priority must be between 1 and 5', 400));
+  }
+
+  let tasks = [];
+
+  // 2. Nếu có groupID, kiểm tra quyền truy cập
+  if (groupID) {
+    const isMember = await GroupMember.isMember(userId, groupID);
+    const isLeader = await Group.isLeader(groupID, userId);
+    if (!isMember && !isLeader) {
+      return next(new AppError('You are not a member of this group', 403));
+    }
+  }
+
+  // 3. Lấy tất cả tasks của user
+  tasks = await Task.findByUserId(userId);
+
+  // 4. Filter theo status
+  if (status) {
+    tasks = tasks.filter(t => t.status === status);
+  }
+
+  // 5. Filter theo priority
+  if (priority) {
+    tasks = tasks.filter(t => t.priority === parseInt(priority));
+  }
+
+  // 6. Filter theo groupID
+  if (groupID) {
+    tasks = tasks.filter(t => t.groupID == groupID); // == để so sánh string và number
+  }
+
+  // 7. Filter theo keyword
+  if (keyword) {
+    const key = keyword.toLowerCase();
+    tasks = tasks.filter(
+      t => t.taskname.toLowerCase().includes(key) || t.description.toLowerCase().includes(key)
+    );
+  }
+
+  res.status(200).json({
+    status: 'success',
+    results: tasks.length,
+    data: {
+      tasks
+    }
+  });
+});
