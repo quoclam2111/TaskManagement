@@ -9,7 +9,7 @@ const { validateTask } = require('../middlewares/validation');
 router.use(authMiddleware);
 
 // CRUD cơ bản
-router.post('/', validateTask, taskController.createTask);
+router.post('/create', validateTask, taskController.createTask);
 router.get('/', taskController.getMyTasks);
 router.get('/stats', taskController.getTaskStats);
 router.get('/search', taskController.searchTasks);
