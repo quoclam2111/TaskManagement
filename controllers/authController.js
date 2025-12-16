@@ -18,7 +18,7 @@ exports.register = async (req, res) => {
         if (!username || !fullname || !email || !password) {
             return res.status(400).json({
                 success: false,
-                message:  'Vui lòng điền đầy đủ thông tin'
+                message: 'Vui lòng điền đầy đủ thông tin'
             });
         }
 
@@ -26,7 +26,7 @@ exports.register = async (req, res) => {
         if (!usernameValidation.valid) {
             return res.status(400).json({
                 success: false,
-                message: usernameValidation. message
+                message: usernameValidation.message
             });
         }
 
@@ -47,15 +47,15 @@ exports.register = async (req, res) => {
 
         const passwordValidation = validatePassword(password);
         if (!passwordValidation.valid) {
-            return res. status(400).json({
+            return res.status(400).json({
                 success: false,
-                message:  passwordValidation.message
+                message: passwordValidation.message
             });
         }
 
         // Kiểm tra user đã tồn tại
         const [existingUsers] = await connection.query(
-            'SELECT id FROM user WHERE username = ?  OR email = ?',
+            'SELECT id FROM user WHERE username = ? OR email = ?',
             [username, email]
         );
 
@@ -69,30 +69,29 @@ exports.register = async (req, res) => {
         // Hash password
         const hashedPassword = await hashPassword(password);
 
-        // Thêm user vào database
+        // ⚠️ QUAN TRỌNG: Với UUID, không cần chỉ định id, MySQL tự generate
         const [result] = await connection.query(
-            'INSERT INTO user (username, fullname, email, password) VALUES (?, ?, ?, ? )',
+            'INSERT INTO user (username, fullname, email, password) VALUES (?, ?, ?, ?)',
             [username, fullname.trim(), email.toLowerCase(), hashedPassword]
         );
 
-        console.log('Insert result:', result); // Debug
+        console.log('Insert result:', result);
 
-        // Lấy user vừa tạo bằng username (chắc chắn hơn insertId)
+        // ⚠️ Với UUID, insertId không hoạt động, phải query bằng username
         const [newUsers] = await connection.query(
             'SELECT id, username, fullname, email FROM user WHERE username = ?',
             [username]
         );
 
-        // Kiểm tra có lấy được user không
         if (!newUsers || newUsers.length === 0) {
             throw new Error('Không thể lấy thông tin người dùng sau khi tạo');
         }
 
         const user = newUsers[0];
 
-        // Tạo JWT token
+        // Tạo JWT token - userId giờ là UUID string
         const token = generateToken({
-            userId: user.id,
+            userId: user.id, // UUID string
             username: user.username,
             email: user.email
         });
@@ -110,7 +109,8 @@ exports.register = async (req, res) => {
         console.error('Lỗi đăng ký:', error);
         res.status(500).json({
             success: false,
-            message: 'Đã xảy ra lỗi, vui lòng thử lại sau'
+            message: 'Đã xảy ra lỗi, vui lòng thử lại sau',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     } finally {
         connection.release();
@@ -131,7 +131,7 @@ exports.login = async (req, res) => {
             });
         }
 
-        // Tìm user (có thể đăng nhập bằng username hoặc email)
+        // Tìm user
         const [users] = await connection.query(
             'SELECT * FROM user WHERE username = ? OR email = ?',
             [username, username.toLowerCase()]
@@ -158,7 +158,7 @@ exports.login = async (req, res) => {
 
         // Tạo JWT token
         const token = generateToken({
-            userId: user.id,
+            userId: user.id, // UUID string
             username: user.username,
             email: user.email
         }, '7d');
@@ -181,7 +181,8 @@ exports.login = async (req, res) => {
         console.error('Lỗi đăng nhập:', error);
         res.status(500).json({
             success: false,
-            message: 'Đã xảy ra lỗi, vui lòng thử lại sau'
+            message: 'Đã xảy ra lỗi, vui lòng thử lại sau',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     } finally {
         connection.release();
@@ -252,7 +253,6 @@ exports.updateProfile = async (req, res) => {
                 });
             }
 
-            // Kiểm tra email đã tồn tại
             const [existingUsers] = await connection.query(
                 'SELECT id FROM user WHERE email = ? AND id != ?',
                 [email.toLowerCase(), userId]
@@ -283,7 +283,6 @@ exports.updateProfile = async (req, res) => {
             params
         );
 
-        // Lấy thông tin user sau khi update
         const [updatedUser] = await connection.query(
             'SELECT id, username, fullname, email FROM user WHERE id = ?',
             [userId]
@@ -330,7 +329,6 @@ exports.changePassword = async (req, res) => {
             });
         }
 
-        // Lấy thông tin user
         const [users] = await connection.query(
             'SELECT password FROM user WHERE id = ?',
             [userId]
@@ -343,7 +341,6 @@ exports.changePassword = async (req, res) => {
             });
         }
 
-        // Kiểm tra mật khẩu hiện tại
         const isPasswordValid = await comparePassword(currentPassword, users[0].password);
 
         if (!isPasswordValid) {
@@ -353,10 +350,8 @@ exports.changePassword = async (req, res) => {
             });
         }
 
-        // Hash mật khẩu mới
         const hashedPassword = await hashPassword(newPassword);
 
-        // Cập nhật mật khẩu
         await connection.query(
             'UPDATE user SET password = ? WHERE id = ?',
             [hashedPassword, userId]

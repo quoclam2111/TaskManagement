@@ -1,4 +1,4 @@
-const jwt = require('../utils/jwt');
+const { verifyToken } = require('../utils/jwt');
 const User = require('../models/User');
 
 const authMiddleware = async (req, res, next) => {
@@ -12,15 +12,20 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token);
+    // ⚠️ Verify token trả về object {valid, decoded} hoặc {valid, error}
+    const result = verifyToken(token);
     
-    if (!decoded) {
+    if (!result.valid) {
       return res.status(401).json({ 
         success: false, 
-        message: 'Token không hợp lệ hoặc đã hết hạn' 
+        message: 'Token không hợp lệ hoặc đã hết hạn',
+        error: result.error?.message || 'Invalid token'
       });
     }
 
+    const decoded = result.decoded;
+    
+    // ⚠️ Kiểm tra user có tồn tại không (userId giờ là UUID string)
     const user = await User.findById(decoded.userId);
     
     if (!user) {
@@ -30,18 +35,24 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
+    // ⚠️ Set req.user với UUID
     req.user = {
-      id: user.id,
+      id: user.id, // UUID string
       username: user.username,
       email: user.email
     };
     
+    // Backward compatibility
+    req.userId = user.id;
+    req.username = user.username;
+    
     next();
   } catch (error) {
+    console.error('Auth middleware error:', error);
     return res.status(401).json({ 
       success: false, 
       message: 'Xác thực thất bại',
-      error: error.message 
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
