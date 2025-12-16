@@ -153,35 +153,43 @@ exports.updateGroup = CatchAsync(async (req, res, next) => {
   });
 });
 
-// Xóa group
+// Xóa group - FIXED VERSION
 exports.deleteGroup = CatchAsync(async (req, res, next) => {
   const { groupID } = req.params;
   const userId = req.user.id;
 
+  // 1. Tìm group TRƯỚC khi xóa
   const group = await Group.findById(groupID);
 
   if (!group) {
     return next(new AppError('Group not found', 404));
   }
 
-  // Chỉ leader mới được xóa
+  // 2. Kiểm tra quyền
   if (group.truongnhom !== userId) {
     return next(new AppError('Only group leader can delete the group', 403));
   }
 
-  // Xóa tất cả tasks của group
-  await Task.deleteByGroupId(groupID);
-  
-  // Xóa tất cả members
-  await GroupMember.removeAllByGroup(groupID);
-  
-  // Xóa group
-  await Group.delete(groupID);
+  try {
+    // 3. Xóa tất cả tasks của group trước
+    await Task.deleteByGroupId(groupID);
+    
+    // 4. Xóa tất cả members
+    await GroupMember.removeAllByGroup(groupID);
+    
+    // 5. Cuối cùng mới xóa group
+    await Group.delete(groupID);
 
-  res.status(204).json({
-    status: 'success',
-    data: null
-  });
+    // 6. Trả về success NGAY LẬP TỨC (không đợi)
+    return res.status(200).json({
+      status: 'success',
+      message: 'Group deleted successfully',
+      data: null
+    });
+  } catch (error) {
+    console.error('Error deleting group:', error);
+    return next(new AppError('Failed to delete group', 500));
+  }
 });
 
 // Thêm thành viên vào group
@@ -239,13 +247,13 @@ exports.removeMember = CatchAsync(async (req, res, next) => {
   }
 
   // Leader không thể tự xóa mình
-  if (group.truongnhom === parseInt(userID)) {
+  if (group.truongnhom === userID) {
     return next(new AppError('Group leader cannot be removed. Transfer leadership first', 400));
   }
 
   // Chỉ leader hoặc chính user đó mới được xóa
   const isLeader = group.truongnhom === currentUserId;
-  const isSelf = currentUserId === parseInt(userID);
+  const isSelf = currentUserId === userID;
 
   if (!isLeader && !isSelf) {
     return next(new AppError('You do not have permission to remove this member', 403));

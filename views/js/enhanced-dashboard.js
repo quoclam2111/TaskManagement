@@ -1,4 +1,3 @@
-// enhanced-dashboard.js - FIXED VERSION
 requireAuth();
 
 // ===== STATE =====
@@ -75,7 +74,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     });
 });
 
-// ===== LOAD ALL USERS (for search) =====
+// ===== LOAD ALL USERS =====
 async function loadAllUsers() {
     try {
         const response = await fetch(`${CONFIG.API_URL}/users/all`, {
@@ -305,14 +304,12 @@ async function saveTask() {
     try {
         let response;
         if (taskId) {
-            // Update existing task
             response = await fetch(`${CONFIG.API_URL}/tasks/${taskId}`, {
                 method: 'PUT',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(taskData)
             });
         } else {
-            // Create new task
             response = await fetch(`${CONFIG.API_URL}/tasks/create`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
@@ -376,7 +373,9 @@ async function loadGroups() {
         
         if (data.status === 'success') {
             currentGroups = data.data.groups;
-            displayGroups(currentGroups);
+            if (document.getElementById('groupsList')) {
+                displayGroups(currentGroups);
+            }
         }
     } catch (error) {
         console.error('Error loading groups:', error);
@@ -413,11 +412,11 @@ function displayGroups(groups) {
             </div>
             ${group.memberCount ? `<div class="group-info">👨‍👩‍👧‍👦 ${group.memberCount} thành viên</div>` : ''}
             <div class="group-actions">
-                <button class="btn-group-action btn-members" onclick="openMembersModal('${group.groupID}')">
+                <button class="btn-group-action btn-members" onclick="openMembersModal(${group.groupID})">
                     👥 Thành viên
                 </button>
                 ${group.role === 'leader' ? `
-                    <button class="btn-group-action btn-delete" onclick="deleteGroup('${group.groupID}')">
+                    <button class="btn-group-action btn-delete" onclick="deleteGroup(${group.groupID})">
                         🗑️ Xóa nhóm
                     </button>
                 ` : ''}
@@ -469,7 +468,7 @@ async function deleteGroup(groupId) {
         
         if (data.status === 'success') {
             alert('✅ Xóa nhóm thành công!');
-            loadGroups();
+            await loadGroups();
         } else {
             alert('❌ ' + (data.message || 'Không thể xóa nhóm'));
         }
@@ -528,7 +527,7 @@ function displayMembers(members, groupId) {
                 ${isGroupLeader ? '<span class="member-badge">Trưởng nhóm</span>' : ''}
             </div>
             ${isLeader && !isGroupLeader ? `
-                <button class="btn-remove" onclick="removeMember('${groupId}', '${member.id}')">Xóa</button>
+                <button class="btn-remove" onclick="removeMember(${groupId}, '${member.id}')">Xóa</button>
             ` : ''}
         </div>
         `;
@@ -563,7 +562,7 @@ function setupMemberSearch(groupId) {
         }
         
         resultsDiv.innerHTML = filtered.map(user => `
-            <div class="search-result-item" onclick="addMemberToGroup('${groupId}', '${user.id}')">
+            <div class="search-result-item" onclick="addMemberToGroup(${groupId}, '${user.id}')">
                 <div class="member-avatar" style="width:30px; height:30px; font-size:14px;">
                     ${user.fullname.charAt(0).toUpperCase()}
                 </div>
