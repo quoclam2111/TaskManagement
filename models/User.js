@@ -104,18 +104,25 @@ class User {
     }
   }
 
-  // Lấy tất cả users (dùng cho admin hoặc tìm kiếm)
-  static async findAll(limit = 50, offset = 0) {
-    try {
-      const [rows] = await db.execute(
-        'SELECT id, username, fullname, email FROM user LIMIT ? OFFSET ?',
-        [limit, offset]
-      );
-      return rows;
-    } catch (error) {
-      throw error;
-    }
+// models/User.js - Fixed findAll() method
+
+// Lấy tất cả users (dùng cho admin hoặc tìm kiếm)
+static async findAll(limit = 50, offset = 0) {
+  try {
+    // ✅ FIX: Dùng query() thay vì execute() cho LIMIT/OFFSET
+    // Vì mysql2 có issue với placeholders cho LIMIT/OFFSET trong execute()
+    const parsedLimit = parseInt(limit) || 50;
+    const parsedOffset = parseInt(offset) || 0;
+    
+    const [rows] = await db.query(
+      `SELECT id, username, fullname, email FROM user LIMIT ${parsedLimit} OFFSET ${parsedOffset}`
+    );
+    return rows;
+  } catch (error) {
+    throw error;
   }
+}
+
 
   // Tìm kiếm user theo tên hoặc email
   static async search(keyword) {

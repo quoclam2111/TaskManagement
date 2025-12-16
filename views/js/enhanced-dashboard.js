@@ -445,6 +445,8 @@ function displayMembers(members, groupId) {
     }).join('');
 }
 
+// views/js/enhanced-dashboard.js - Phần member search đã fix
+
 function setupMemberSearch(groupId) {
     const searchInput = document.getElementById('searchMember');
     const resultsDiv = document.getElementById('searchResults');
@@ -459,11 +461,13 @@ function setupMemberSearch(groupId) {
             return;
         }
         
-        const filtered = allUsers.filter(u => 
-            !currentGroupMembers.find(m => m.id === u.id) &&
-            (u.username.toLowerCase().includes(keyword) || 
-             u.fullname.toLowerCase().includes(keyword))
-        );
+        // ✅ Filter users - loại bỏ members hiện tại
+        const filtered = allUsers.filter(u => {
+            const isCurrentMember = currentGroupMembers.find(m => m.id === u.id);
+            const matchesSearch = u.username.toLowerCase().includes(keyword) || 
+                                  u.fullname.toLowerCase().includes(keyword);
+            return !isCurrentMember && matchesSearch;
+        });
         
         if (filtered.length === 0) {
             resultsDiv.innerHTML = '<div style="padding:10px; color:#95a5a6;">Không tìm thấy</div>';
@@ -489,6 +493,8 @@ function setupMemberSearch(groupId) {
 
 async function addMemberToGroup(groupId, userId) {
     try {
+        console.log('Adding member:', { groupId, userId }); // Debug
+        
         const response = await fetch(`${CONFIG.API_URL}/groups/${groupId}/members`, {
             method: 'POST',
             headers: getAuthHeaders(),
@@ -496,41 +502,43 @@ async function addMemberToGroup(groupId, userId) {
         });
         
         const data = await response.json();
+        console.log('Add member response:', data); // Debug
         
         if (data.status === 'success') {
             document.getElementById('searchMember').value = '';
             document.getElementById('searchResults').style.display = 'none';
-            openMembersModal(groupId); // Reload
+            await openMembersModal(groupId); // Reload
             alert('✅ Thêm thành viên thành công!');
         } else {
             alert('❌ ' + (data.message || 'Không thể thêm thành viên'));
         }
     } catch (error) {
         console.error('Error adding member:', error);
-        alert('❌ Có lỗi xảy ra');
+        alert('❌ Có lỗi xảy ra: ' + error.message);
     }
 }
 
-async function removeMember(groupId, userId) {
-    if (!confirm('Bạn có chắc muốn xóa thành viên này?')) return;
+// ✅ Fix cho openMembersModal - đảm bảo load lại currentGroupMembers
+async function openMembersModal(groupId) {
+    document.getElementById('currentGroupId').value = groupId;
     
     try {
-        const response = await fetch(`${CONFIG.API_URL}/groups/${groupId}/members/${userId}`, {
-            method: 'DELETE',
+        const response = await fetch(`${CONFIG.API_URL}/groups/${groupId}/members`, {
             headers: getAuthHeaders()
         });
-        
         const data = await response.json();
         
         if (data.status === 'success') {
-            openMembersModal(groupId); // Reload
-            alert('✅ Đã xóa thành viên');
-        } else {
-            alert('❌ ' + (data.message || 'Không thể xóa'));
+            currentGroupMembers = data.data.members; // ✅ Cập nhật lại
+            displayMembers(currentGroupMembers, groupId);
+            openModal('membersModal');
+            
+            // Setup search SAU KHI đã load members
+            setupMemberSearch(groupId);
         }
     } catch (error) {
-        console.error('Error removing member:', error);
-        alert('❌ Có lỗi xảy ra');
+        console.error('Error loading members:', error);
+        alert('❌ Không thể tải danh sách thành viên');
     }
 }
 
