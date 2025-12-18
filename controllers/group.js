@@ -1,361 +1,323 @@
+// controllers/group.js - FIXED VERSION
+
 const Group = require('../models/Group');
 const GroupMember = require('../models/GroupMember');
 const Task = require('../models/Task');
-const User = require('../models/User');
 const CatchAsync = require('../utils/CatchAsync');
 const AppError = require('../utils/AppError');
 
 // Tạo group mới
 exports.createGroup = CatchAsync(async (req, res, next) => {
-  const { groupName } = req.body;
-  const userId = req.user.id;
+    const { groupName } = req.body;
+    const userId = req.user.id;
 
-  if (!groupName) {
-    return next(new AppError('Group name is required', 400));
-  }
+    // ✅ FIX: Tạo group và lấy kết quả đúng cách
+    const newGroup = await Group.create({
+        groupName,
+        truongnhom: userId
+    });
 
-  const groupData = {
-    groupName,
-    truongnhom: userId
-  };
-
-  const newGroup = await Group.create(groupData);
-
-  // Tự động thêm người tạo vào group
-  await GroupMember.add(userId, newGroup.groupID);
-
-  res.status(201).json({
-    status: 'success',
-    data: {
-      group: newGroup
+    // ✅ FIX: Kiểm tra newGroup trước khi dùng
+    if (!newGroup || !newGroup.groupID) {
+        return next(new AppError('Failed to create group', 500));
     }
-  });
+
+    // Thêm người tạo vào groupmember
+    await GroupMember.add(userId, newGroup.groupID);
+
+    res.status(201).json({
+        status: 'success',
+        message: 'Group created successfully',
+        data: {
+            group: newGroup
+        }
+    });
 });
 
 // Lấy tất cả groups của user (cả leader và member)
 exports.getMyGroups = CatchAsync(async (req, res, next) => {
-  const userId = req.user.id;
+    const userId = req.user.id;
+    
+    // Lấy groups mà user là thành viên
+    const groups = await GroupMember.getGroupsByUser(userId);
+    
+    // ✅ FIX: Thêm thông tin role và số lượng thành viên cho mỗi group
+    const groupsWithDetails = await Promise.all(
+        groups.map(async (group) => {
+            const memberCount = await GroupMember.countMembers(group.groupID);
+            const isLeader = group.truongnhom == userId;
+            
+            return {
+                groupID: group.groupID,
+                groupName: group.groupName,
+                truongnhom: group.truongnhom,
+                truongnhom_name: group.truongnhom_name,
+                truongnhom_fullname: group.truongnhom_fullname,
+                role: isLeader ? 'leader' : 'member',
+                memberCount: memberCount || 0 // ✅ Ensure memberCount is always a number
+            };
+        })
+    );
 
-  // Lấy groups mà user là leader
-  const leaderGroups = await Group.findByLeader(userId);
-  
-  // Lấy groups mà user là member
-  const memberGroups = await Group.findByMember(userId);
-
-  // Merge và loại bỏ duplicate
-  const groupMap = new Map();
-  
-  leaderGroups.forEach(group => {
-    groupMap.set(group.groupID, { ...group, role: 'leader' });
-  });
-  
-  memberGroups.forEach(group => {
-    if (!groupMap.has(group.groupID)) {
-      groupMap.set(group.groupID, { ...group, role: 'member' });
-    }
-  });
-
-  const groups = Array.from(groupMap.values());
-
-  res.status(200).json({
-    status: 'success',
-    results: groups.length,
-    data: {
-      groups
-    }
-  });
+    res.status(200).json({
+        status: 'success',
+        results: groupsWithDetails.length,
+        data: {
+            groups: groupsWithDetails
+        }
+    });
 });
 
-// Lấy thông tin group theo ID
+// Lấy thông tin chi tiết một group
 exports.getGroup = CatchAsync(async (req, res, next) => {
-  const { groupID } = req.params;
-  const userId = req.user.id;
+    const { groupID } = req.params;
+    const userId = req.user.id;
 
-  const group = await Group.findById(groupID);
+    const group = await Group.findById(groupID);
 
-  if (!group) {
-    return next(new AppError('Group not found', 404));
-  }
-
-  // Kiểm tra quyền truy cập
-  const isMember = await GroupMember.isMember(userId, groupID);
-  const isLeader = group.truongnhom === userId;
-
-  if (!isMember && !isLeader) {
-    return next(new AppError('You do not have permission to access this group', 403));
-  }
-
-  // Lấy thêm thông tin members và số lượng
-  const members = await Group.getMembers(groupID);
-  const memberCount = await Group.getMemberCount(groupID);
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      group: {
-        ...group,
-        memberCount,
-        members,
-        role: isLeader ? 'leader' : 'member'
-      }
+    if (!group) {
+        return next(new AppError('Group not found', 404));
     }
-  });
-});
 
-// Cập nhật thông tin group
-exports.updateGroup = CatchAsync(async (req, res, next) => {
-  const { groupID } = req.params;
-  const userId = req.user.id;
-  const { groupName, truongnhom } = req.body;
-
-  const group = await Group.findById(groupID);
-
-  if (!group) {
-    return next(new AppError('Group not found', 404));
-  }
-
-  // Chỉ leader mới được cập nhật
-  if (group.truongnhom !== userId) {
-    return next(new AppError('Only group leader can update group information', 403));
-  }
-
-  const groupData = {};
-  if (groupName) groupData.groupName = groupName;
-  if (truongnhom) {
-    // Kiểm tra user mới có tồn tại không
-    const newLeader = await User.findById(truongnhom);
-    if (!newLeader) {
-      return next(new AppError('New leader not found', 404));
-    }
-    
-    // Kiểm tra user mới có phải member không
-    const isMember = await GroupMember.isMember(truongnhom, groupID);
+    // Kiểm tra user có phải là thành viên không
+    const isMember = await GroupMember.isMember(userId, groupID);
     if (!isMember) {
-      return next(new AppError('New leader must be a group member', 400));
+        return next(new AppError('You are not a member of this group', 403));
     }
-    
-    groupData.truongnhom = truongnhom;
-  }
 
-  const updated = await Group.update(groupID, groupData);
+    // Lấy số lượng thành viên
+    const memberCount = await GroupMember.countMembers(groupID);
 
-  if (!updated) {
-    return next(new AppError('No changes made', 400));
-  }
-
-  const updatedGroup = await Group.findById(groupID);
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      group: updatedGroup
-    }
-  });
+    res.status(200).json({
+        status: 'success',
+        data: {
+            group: {
+                ...group,
+                memberCount,
+                role: group.truongnhom == userId ? 'leader' : 'member'
+            }
+        }
+    });
 });
 
-// Hàm deleteGroup 
+// Cập nhật thông tin group (chỉ leader)
+exports.updateGroup = CatchAsync(async (req, res, next) => {
+    const { groupID } = req.params;
+    const { groupName } = req.body;
+    const userId = req.user.id;
+
+    // Kiểm tra group có tồn tại
+    const group = await Group.findById(groupID);
+    if (!group) {
+        return next(new AppError('Group not found', 404));
+    }
+
+    // Kiểm tra quyền leader
+    if (group.truongnhom != userId) {
+        return next(new AppError('Only group leader can update group information', 403));
+    }
+
+    // Cập nhật
+    const updated = await Group.update(groupID, { groupName });
+
+    if (!updated) {
+        return next(new AppError('Failed to update group', 500));
+    }
+
+    const updatedGroup = await Group.findById(groupID);
+
+    res.status(200).json({
+        status: 'success',
+        message: 'Group updated successfully',
+        data: {
+            group: updatedGroup
+        }
+    });
+});
+
+// Xóa group (chỉ leader)
 exports.deleteGroup = CatchAsync(async (req, res, next) => {
-  const { groupID } = req.params;
-  const userId = req.user.id;
+    const { groupID } = req.params;
+    const userId = req.user.id;
 
-  // 1. Tìm group TRƯỚC khi xóa
-  const group = await Group.findById(groupID);
+    const group = await Group.findById(groupID);
+    if (!group) {
+        return next(new AppError('Group not found', 404));
+    }
 
-  if (!group) {
-    return next(new AppError('Group not found', 404));
-  }
+    // Kiểm tra quyền leader
+    if (group.truongnhom != userId) {
+        return next(new AppError('Only group leader can delete the group', 403));
+    }
 
-  // 2. Kiểm tra quyền
-  if (group.truongnhom !== userId) {
-    return next(new AppError('Only group leader can delete the group', 403));
-  }
+    // Xóa tất cả tasks của group
+    await Task.deleteByGroup(groupID);
 
-  try {
-    // 3. Xóa tất cả tasks của group trước
-    await Task.deleteByGroupId(groupID);
-    
-    // 4. Xóa tất cả members
+    // Xóa tất cả thành viên
     await GroupMember.removeAllByGroup(groupID);
-    
-    // 5. Cuối cùng mới xóa group
+
+    // Xóa group
     await Group.delete(groupID);
 
-    // 6. Trả về success
-    return res.status(200).json({
-      status: 'success',
-      message: 'Group deleted successfully',
-      data: null
+    res.status(204).json({
+        status: 'success',
+        data: null
     });
-  } catch (error) {
-    console.error('Error deleting group:', error);
-    return next(new AppError('Failed to delete group', 500));
-  }
-});
-
-// Thêm thành viên vào group
-exports.addMember = CatchAsync(async (req, res, next) => {
-  const { groupID } = req.params;
-  const { userID } = req.body;
-  const currentUserId = req.user.id;
-
-  if (!userID) {
-    return next(new AppError('User ID is required', 400));
-  }
-
-  const group = await Group.findById(groupID);
-
-  if (!group) {
-    return next(new AppError('Group not found', 404));
-  }
-
-  // Chỉ leader mới được thêm member
-  if (group.truongnhom !== currentUserId) {
-    return next(new AppError('Only group leader can add members', 403));
-  }
-
-  // Kiểm tra user có tồn tại không
-  const user = await User.findById(userID);
-  if (!user) {
-    return next(new AppError('User not found', 404));
-  }
-
-  // Thêm member
-  const added = await GroupMember.add(userID, groupID);
-
-  if (!added) {
-    return next(new AppError('User is already a member of this group', 400));
-  }
-
-  res.status(201).json({
-    status: 'success',
-    message: 'Member added successfully',
-    data: {
-      member: user
-    }
-  });
-});
-
-// Xóa thành viên khỏi group
-exports.removeMember = CatchAsync(async (req, res, next) => {
-  const { groupID, userID } = req.params;
-  const currentUserId = req.user.id;
-
-  const group = await Group.findById(groupID);
-
-  if (!group) {
-    return next(new AppError('Group not found', 404));
-  }
-
-  // Leader không thể tự xóa mình
-  if (group.truongnhom === userID) {
-    return next(new AppError('Group leader cannot be removed. Transfer leadership first', 400));
-  }
-
-  // Chỉ leader hoặc chính user đó mới được xóa
-  const isLeader = group.truongnhom === currentUserId;
-  const isSelf = currentUserId === userID;
-
-  if (!isLeader && !isSelf) {
-    return next(new AppError('You do not have permission to remove this member', 403));
-  }
-
-  const removed = await GroupMember.remove(userID, groupID);
-
-  if (!removed) {
-    return next(new AppError('User is not a member of this group', 400));
-  }
-
-  res.status(200).json({
-    status: 'success',
-    message: 'Member removed successfully'
-  });
 });
 
 // Lấy danh sách thành viên
 exports.getMembers = CatchAsync(async (req, res, next) => {
-  const { groupID } = req.params;
-  const userId = req.user.id;
+    const { groupID } = req.params;
+    const userId = req.user.id;
 
-  const group = await Group.findById(groupID);
-
-  if (!group) {
-    return next(new AppError('Group not found', 404));
-  }
-
-  // Kiểm tra quyền truy cập
-  const isMember = await GroupMember.isMember(userId, groupID);
-  const isLeader = group.truongnhom === userId;
-
-  if (!isMember && !isLeader) {
-    return next(new AppError('You do not have permission to view members', 403));
-  }
-
-  const members = await GroupMember.getMembersByGroup(groupID);
-
-  res.status(200).json({
-    status: 'success',
-    results: members.length,
-    data: {
-      members
+    // Kiểm tra group tồn tại
+    const group = await Group.findById(groupID);
+    if (!group) {
+        return next(new AppError('Group not found', 404));
     }
-  });
+
+    // Kiểm tra user có phải thành viên không
+    const isMember = await GroupMember.isMember(userId, groupID);
+    if (!isMember) {
+        return next(new AppError('You are not a member of this group', 403));
+    }
+
+    const members = await GroupMember.getMembersByGroup(groupID);
+
+    res.status(200).json({
+        status: 'success',
+        results: members.length,
+        data: {
+            members
+        }
+    });
+});
+
+// Thêm thành viên (chỉ leader)
+exports.addMember = CatchAsync(async (req, res, next) => {
+    const { groupID } = req.params;
+    const { userID } = req.body;
+    const userId = req.user.id;
+
+    if (!userID) {
+        return next(new AppError('userID is required', 400));
+    }
+
+    // Kiểm tra group
+    const group = await Group.findById(groupID);
+    if (!group) {
+        return next(new AppError('Group not found', 404));
+    }
+
+    // Kiểm tra quyền leader
+    if (group.truongnhom != userId) {
+        return next(new AppError('Only group leader can add members', 403));
+    }
+
+    // Kiểm tra xem đã là thành viên chưa
+    const isMember = await GroupMember.isMember(userID, groupID);
+    if (isMember) {
+        return next(new AppError('User is already a member', 400));
+    }
+
+    // Thêm thành viên
+    const added = await GroupMember.add(userID, groupID);
+
+    if (!added) {
+        return next(new AppError('Failed to add member', 500));
+    }
+
+    res.status(201).json({
+        status: 'success',
+        message: 'Member added successfully'
+    });
 });
 
 // Thêm nhiều thành viên cùng lúc
 exports.addMultipleMembers = CatchAsync(async (req, res, next) => {
-  const { groupID } = req.params;
-  const { userIDs } = req.body;
-  const currentUserId = req.user.id;
+    const { groupID } = req.params;
+    const { userIDs } = req.body;
+    const userId = req.user.id;
 
-  if (!userIDs || !Array.isArray(userIDs) || userIDs.length === 0) {
-    return next(new AppError('User IDs array is required', 400));
-  }
-
-  const group = await Group.findById(groupID);
-
-  if (!group) {
-    return next(new AppError('Group not found', 404));
-  }
-
-  // Chỉ leader mới được thêm members
-  if (group.truongnhom !== currentUserId) {
-    return next(new AppError('Only group leader can add members', 403));
-  }
-
-  const results = await GroupMember.addMultiple(userIDs, groupID);
-
-  res.status(201).json({
-    status: 'success',
-    data: {
-      results
+    if (!Array.isArray(userIDs) || userIDs.length === 0) {
+        return next(new AppError('userIDs must be a non-empty array', 400));
     }
-  });
+
+    const group = await Group.findById(groupID);
+    if (!group) {
+        return next(new AppError('Group not found', 404));
+    }
+
+    if (group.truongnhom != userId) {
+        return next(new AppError('Only group leader can add members', 403));
+    }
+
+    const results = await GroupMember.addMultiple(userIDs, groupID);
+
+    res.status(201).json({
+        status: 'success',
+        message: 'Members added',
+        data: {
+            results
+        }
+    });
 });
 
-// Rời khỏi group (tự xóa mình)
+// Xóa thành viên (leader hoặc tự xóa mình)
+exports.removeMember = CatchAsync(async (req, res, next) => {
+    const { groupID, userID } = req.params;
+    const userId = req.user.id;
+
+    const group = await Group.findById(groupID);
+    if (!group) {
+        return next(new AppError('Group not found', 404));
+    }
+
+    // Không cho xóa trưởng nhóm
+    if (group.truongnhom == userID) {
+        return next(new AppError('Cannot remove group leader', 400));
+    }
+
+    // Kiểm tra quyền: phải là leader hoặc tự xóa mình
+    if (group.truongnhom != userId && userID != userId) {
+        return next(new AppError('You do not have permission to remove this member', 403));
+    }
+
+    const removed = await GroupMember.remove(userID, groupID);
+
+    if (!removed) {
+        return next(new AppError('Member not found or already removed', 404));
+    }
+
+    res.status(200).json({
+        status: 'success',
+        message: 'Member removed successfully'
+    });
+});
+
+// Rời khỏi group (member tự rời)
 exports.leaveGroup = CatchAsync(async (req, res, next) => {
-  const { groupID } = req.params;
-  const userId = req.user.id;
+    const { groupID } = req.params;
+    const userId = req.user.id;
 
-  const group = await Group.findById(groupID);
+    const group = await Group.findById(groupID);
+    if (!group) {
+        return next(new AppError('Group not found', 404));
+    }
 
-  if (!group) {
-    return next(new AppError('Group not found', 404));
-  }
+    // Leader không thể rời, phải xóa group
+    if (group.truongnhom == userId) {
+        return next(new AppError('Group leader cannot leave. Please delete the group or transfer leadership', 400));
+    }
 
-  // Leader không thể rời group
-  if (group.truongnhom === userId) {
-    return next(new AppError('Group leader cannot leave. Transfer leadership or delete the group', 400));
-  }
+    const removed = await GroupMember.remove(userId, groupID);
 
-  const removed = await GroupMember.remove(userId, groupID);
+    if (!removed) {
+        return next(new AppError('You are not a member of this group', 404));
+    }
 
-  if (!removed) {
-    return next(new AppError('You are not a member of this group', 400));
-  }
-
-  res.status(200).json({
-    status: 'success',
-    message: 'You have left the group successfully'
-  });
+    res.status(200).json({
+        status: 'success',
+        message: 'Left group successfully'
+    });
 });

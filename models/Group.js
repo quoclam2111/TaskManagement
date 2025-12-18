@@ -1,21 +1,48 @@
 const db = require('../configs/database');
 
 class Group {
-  // Tạo group mới
+  // ✅ FIXED: Tạo group mới - MySQL tự động tạo UUID
   static async create(groupData) {
     try {
       const { groupName, truongnhom } = groupData;
+      
+      console.log('🔧 Creating group:', { groupName, truongnhom });
+      
+      // ✅ Không cần truyền groupID, MySQL tự động tạo với DEFAULT (UUID())
       const [result] = await db.execute(
         'INSERT INTO `group` (groupName, truongnhom) VALUES (?, ?)',
         [groupName, truongnhom]
       );
       
-      // Lấy group vừa tạo
+      console.log('📊 Insert result:', result);
+      
+      // ✅ CRITICAL: Kiểm tra insert có thành công không
+      if (result.affectedRows === 0) {
+        console.error('❌ No rows inserted');
+        return null;
+      }
+      
+      // ✅ QUAN TRỌNG: Lấy group vừa tạo bằng groupName và truongnhom
+      // Vì UUID được tạo tự động, ta không biết trước giá trị
+      // Cách an toàn nhất: query bằng groupName + truongnhom + ORDER BY (lấy cái mới nhất)
       const [newGroup] = await db.execute(
-        'SELECT * FROM `group` WHERE groupID = LAST_INSERT_ID()'
+        `SELECT * FROM \`group\` 
+         WHERE groupName = ? AND truongnhom = ? 
+         ORDER BY groupID DESC 
+         LIMIT 1`,
+        [groupName, truongnhom]
       );
+      
+      if (!newGroup || newGroup.length === 0) {
+        console.error('❌ Failed to retrieve newly created group');
+        return null;
+      }
+      
+      console.log('✅ New group created:', newGroup[0]);
+      
       return newGroup[0];
     } catch (error) {
+      console.error('❌ Error in Group.create:', error);
       throw error;
     }
   }
