@@ -153,7 +153,7 @@ exports.updateGroup = CatchAsync(async (req, res, next) => {
   });
 });
 
-// Xóa group - FIXED VERSION
+// Hàm deleteGroup 
 exports.deleteGroup = CatchAsync(async (req, res, next) => {
   const { groupID } = req.params;
   const userId = req.user.id;
@@ -180,7 +180,7 @@ exports.deleteGroup = CatchAsync(async (req, res, next) => {
     // 5. Cuối cùng mới xóa group
     await Group.delete(groupID);
 
-    // 6. Trả về success NGAY LẬP TỨC (không đợi)
+    // 6. Trả về success
     return res.status(200).json({
       status: 'success',
       message: 'Group deleted successfully',

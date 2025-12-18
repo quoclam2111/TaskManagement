@@ -3,9 +3,10 @@ const User = require('../models/User');
 
 const authMiddleware = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1];
     
-    if (!token) {
+    if (!authHeader || !token) {
       return res.status(401).json({ 
         success: false, 
         message: 'Token không được cung cấp' 

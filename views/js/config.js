@@ -85,10 +85,25 @@ function getUser() {
  */
 function getAuthHeaders() {
     const token = getToken();
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : ''
+    
+    if (CONFIG.DEBUG) {
+        console.log('🔐 Token từ localStorage:', token ? token.substring(0, 20) + '...' : 'KHÔNG CÓ');
+    }
+    
+    const headers = {
+        'Content-Type': 'application/json'
     };
+    
+    // CHỈ thêm Authorization header nếu có token
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    if (CONFIG.DEBUG) {
+        console.log('📤 Headers được gửi:', headers);
+    }
+    
+    return headers;
 }
 
 /**

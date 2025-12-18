@@ -11,8 +11,10 @@ class Task {
       );
       
       // Lấy task vừa tạo
+      const taskId = result.insertId;
       const [newTask] = await db.execute(
-        'SELECT * FROM task WHERE taskid = LAST_INSERT_ID()'
+        'SELECT * FROM task WHERE taskid = ?',
+        [taskId]
       );
       return newTask[0];
     } catch (error) {

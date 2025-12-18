@@ -2,11 +2,11 @@ const db = require('../configs/database');
 
 class TaskAssignment {
   // Giao task cho user
-  static async assign(taskID, assignedTo, assignedBy) {
+  static async assign(taskID, assignedTo, assignedBy, notes = null) {
     try {
       const [result] = await db.execute(
-        'INSERT INTO task_assignment (taskID, assignedTo, assignedBy) VALUES (?, ?, ?)',
-        [taskID, assignedTo, assignedBy]
+        'INSERT INTO task_assignment (taskID, assignedTo, assignedBy, notes) VALUES (?, ?, ?, ?)',
+        [taskID, assignedTo, assignedBy, notes]
       );
       return result.affectedRows > 0;
     } catch (error) {
@@ -35,7 +35,7 @@ class TaskAssignment {
   static async getAssignees(taskID) {
     try {
       const [rows] = await db.execute(
-        `SELECT u.id, u.username, u.fullname, u.email, ta.assignedAt,
+        `SELECT u.id, u.username, u.fullname, u.email, ta.assignedAt, ta.notes,
                 ab.username as assignedBy_name, ab.fullname as assignedBy_fullname
          FROM task_assignment ta
          INNER JOIN user u ON ta.assignedTo = u.id
@@ -53,7 +53,7 @@ class TaskAssignment {
   static async getTasksAssignedTo(userID) {
     try {
       const [rows] = await db.execute(
-        `SELECT t.*, g.groupName, ta.assignedAt,
+        `SELECT t.*, g.groupName, ta.assignedAt, ta.notes,
                 ab.username as assignedBy_name, ab.fullname as assignedBy_fullname
          FROM task_assignment ta
          INNER JOIN task t ON ta.taskID = t.taskid

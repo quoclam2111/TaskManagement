@@ -157,7 +157,7 @@ exports.deleteTask = CatchAsync(async (req, res, next) => {
 
   await Task.delete(taskid);
 
-  res.status(204).json({
+  res.status(200).json({
     status: 'success',
     data: null
   });
@@ -279,14 +279,20 @@ exports.updateStatus = CatchAsync(async (req, res, next) => {
     return next(new AppError('Task not found', 404));
   }
 
-  // 3. Kiểm tra quyền: chỉ owner hoặc group leader mới được cập nhật
+  // 3. Kiểm tra quyền: owner hoặc group leader hoặc người được assign mới được cập nhật
   const isOwner = task.id === userId;
   let isLeader = false;
+  let isAssigned = false;
+
   if (task.groupID) {
     isLeader = await Group.isLeader(task.groupID, userId);
   }
 
-  if (!isOwner && !isLeader) {
+  // Kiểm tra xem user có được assign cho task này không
+  const assignees = await TaskAssignment.getAssignees(taskid);
+  isAssigned = assignees.some(a => a.id === userId);
+
+  if (!isOwner && !isLeader && !isAssigned) {
     return next(new AppError('You do not have permission to update this task', 403));
   }
 
@@ -382,7 +388,7 @@ exports.filterTasks = CatchAsync(async (req, res, next) => {
 // Giao task cho user
 exports.assignTask = CatchAsync(async (req, res, next) => {
   const { taskid } = req.params;
-  const { assignedTo } = req.body;
+  const { assignedTo, notes } = req.body;
   const userId = req.user.id;
 
   if (!assignedTo) {
@@ -413,8 +419,8 @@ exports.assignTask = CatchAsync(async (req, res, next) => {
     return next(new AppError('You do not have permission to assign this task', 403));
   }
 
-  // 3. Assign task
-  const assigned = await TaskAssignment.assign(taskid, assignedTo, userId);
+  // 3. Assign task với notes
+  const assigned = await TaskAssignment.assign(taskid, assignedTo, userId, notes || null);
 
   if (!assigned) {
     return next(new AppError('User is already assigned to this task', 400));

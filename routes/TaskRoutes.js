@@ -8,24 +8,40 @@ const { validateTask } = require('../middlewares/validation');
 // Tất cả routes đều cần authentication
 router.use(authMiddleware);
 
-// CRUD cơ bản
-router.post('/create', validateTask, taskController.createTask);
-router.get('/', taskController.getMyTasks);
-router.get('/stats', taskController.getTaskStats);
-router.get('/search', taskController.searchTasks);
-router.get('/status/:status', taskController.getTasksByStatus);
-router.get('/priority/:priority', taskController.getTasksByPriority);
-router.get('/group/:groupID', taskController.getGroupTasks);
-
-
-
-// ===== TASK ASSIGNMENT ROUTES (MỚI) =====
+// ===== STATIC ROUTES (ĐẶT TRƯỚC) =====
 // Lấy tasks được assign cho tôi
 router.get('/assigned-to-me', taskController.getMyAssignedTasks);
 
 // Lấy tasks tôi đã assign
 router.get('/assigned-by-me', taskController.getTasksIAssigned);
 
+// Thống kê
+router.get('/stats', taskController.getTaskStats);
+
+// Tìm kiếm
+router.get('/search', taskController.searchTasks);
+
+// Lọc
+router.get('/filter', taskController.filterTasks);
+
+// ===== PARAMETERIZED STATIC ROUTES =====
+// Lấy theo status
+router.get('/status/:status', taskController.getTasksByStatus);
+
+// Lấy theo priority
+router.get('/priority/:priority', taskController.getTasksByPriority);
+
+// Lấy theo group
+router.get('/group/:groupID', taskController.getGroupTasks);
+
+// ===== CRUD BASIC ROUTES =====
+// Tạo task
+router.post('/create', validateTask, taskController.createTask);
+
+// Lấy danh sách tasks của tôi
+router.get('/', taskController.getMyTasks);
+
+// ===== DYNAMIC ROUTES WITH :taskid (ĐẶT CUỐI CÙNG) =====
 // Lấy assignees của task
 router.get('/:taskid/assignees', taskController.getTaskAssignees);
 
@@ -38,18 +54,16 @@ router.post('/:taskid/assign-multiple', taskController.assignMultipleUsers);
 // Unassign task
 router.delete('/:taskid/assign/:userId', taskController.unassignTask);
 
-
-
-
-// ===== CÁC ROUTES CŨ =====
+// Chi tiết task
 router.get('/:taskid', taskController.getTask);
-router.put('/:taskid', validateTask, taskController.updateTask);
-router.delete('/:taskid', taskController.deleteTask);
 
-// update Status
+// Cập nhật task
+router.put('/:taskid', validateTask, taskController.updateTask);
+
+// Cập nhật status
 router.patch('/:taskid/status', taskController.updateStatus);
 
-// filter task
-router.get('/filter', taskController.filterTasks);
+// Xóa task
+router.delete('/:taskid', taskController.deleteTask);
 
 module.exports = router;

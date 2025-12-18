@@ -8,13 +8,16 @@ const { validateGroup } = require('../middlewares/validation');
 // Tất cả routes đều cần authentication
 router.use(authMiddleware);
 
-// ========== CRUD Group ==========
+// ========== CRUD Group - STATIC ROUTES (ĐẶT TRƯỚC) ==========
 
 // Tạo group mới
 router.post('/', validateGroup, groupController.createGroup);
 
 // Lấy tất cả groups của user (leader + member)
 router.get('/', groupController.getMyGroups);
+
+
+// ========== DYNAMIC ROUTES (ĐẶT CUỐI) ==========
 
 // Lấy thông tin group theo ID
 router.get('/:groupID', groupController.getGroup);
@@ -24,9 +27,6 @@ router.put('/:groupID', validateGroup, groupController.updateGroup);
 
 // Xóa group (chỉ leader)
 router.delete('/:groupID', groupController.deleteGroup);
-
-
-// ========== Quản lý Members ==========
 
 // Lấy danh sách thành viên
 router.get('/:groupID/members', groupController.getMembers);

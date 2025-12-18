@@ -41,7 +41,7 @@
         <div class="header">
             <h1 id="pageTitle">Công việc của tôi</h1>
             <div class="header-actions">
-                <button class="btn-primary" onclick="openModal('groupModal')" id="btnCreateGroup" style="display:none;">
+                <button class="btn-primary" onclick="openCreateGroupModal()" id="btnCreateGroup" style="display:none;">
                     <span>➕</span> Tạo nhóm
                 </button>
                 <button class="btn-primary" onclick="openCreateTaskModal()" id="btnCreateTask">
@@ -225,6 +225,11 @@
                         <option value="">-- Chọn thành viên --</option>
                     </select>
                 </div>
+
+                <div class="form-group">
+                    <label>Ghi chú/Hướng dẫn (tuỳ chọn)</label>
+                    <textarea id="assignNotes" class="form-control" rows="4" placeholder="Nhập ghi chú, hướng dẫn cho thành viên về công việc này..."></textarea>
+                </div>
                 
                 <h3 style="margin-top: 20px; margin-bottom: 10px; font-size: 16px;">Đã giao cho:</h3>
                 <div id="assigneesList" class="members-list"></div>
@@ -263,6 +268,7 @@
 
     <!-- Load scripts -->
     <script src="js/config.js"></script>
+    <script src="js/functions.js"></script>
     <script src="js/enhanced-dashboard.js"></script>
 </body>
 </html>
