@@ -1,4 +1,4 @@
-// enhanced-dashboard.js
+// enhanced-dashboard.js - FIXED VERSION
 requireAuth();
 
 // ===== STATE =====
@@ -257,30 +257,16 @@ function displayAssignedTasks(tasks) {
     }).join('');
 }
 
-// ===== TASK MODAL =====
+// ===== MODAL - FIXED VERSION =====
+// ⚠️ CHỈ MỞ MODAL, KHÔNG RESET FORM
 function openModal(modalId) {
     document.getElementById(modalId).classList.add('show');
-    
-    if (modalId === 'taskModal') {
-        document.getElementById('taskForm').reset();
-        document.getElementById('editTaskId').value = '';
-        document.getElementById('taskModalTitle').textContent = 'Thêm công việc';
-        loadGroups().then(() => populateGroupSelect(currentGroups));
-    }
-    
-    if (modalId === 'groupModal') {
-        document.getElementById('groupForm').reset();
-        document.getElementById('groupId').value = '';
-        document.getElementById('groupModalTitle').textContent = 'Tạo nhóm mới';
-    }
 }
 
 function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('show');
     assigningTaskId = null;
 }
-
-// ✓ Task functions moved to functions.js (openCreateTaskModal, openEditTaskModal, deleteTask, saveTask)
 
 function populateGroupSelect(groups) {
     const select = document.getElementById('taskGroup');
@@ -354,9 +340,6 @@ function displayGroups(groups) {
         </div>
     `).join('');
 }
-
-// ✓ Group functions moved to functions.js (saveGroup, openEditGroupModal, deleteGroup, leaveGroup)
-// ✓ Task assignment functions moved to functions.js
 
 // ===== PROFILE =====
 async function loadProfile() {

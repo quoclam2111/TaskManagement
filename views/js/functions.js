@@ -3,6 +3,23 @@
 
 // ===== 1. TASK FUNCTIONS =====
 
+/**
+ * Mở modal để tạo task mới - FIXED VERSION
+ */
+function openCreateTaskModal() {
+    console.log('➕ Opening create task modal');
+    
+    // RESET FORM HOÀN TOÀN
+    document.getElementById('taskForm').reset();
+    document.getElementById('editTaskId').value = ''; // Clear hidden field
+    document.getElementById('taskModalTitle').textContent = '➕ Thêm công việc';
+    
+    // Load groups và populate select
+    loadGroups().then(() => populateGroupSelect(currentGroups));
+    
+    // Mở modal
+    openModal('taskModal');
+}
 
 /**
  * Mở modal để sửa task - FIXED VERSION
@@ -50,7 +67,6 @@ async function openEditTaskModal(taskId) {
         groupID: task.groupID
     });
 }
-
 
 /**
  * Lưu hoặc cập nhật task - FIXED VERSION
@@ -109,60 +125,6 @@ async function saveTask() {
     } catch (error) {
         console.error('❌ Error saving task:', error);
         alert('❌ Không thể lưu công việc: ' + error.message);
-    }
-}
-
-/**
- * Lưu hoặc cập nhật nhóm - FIXED VERSION
- */
-async function saveGroup() {
-    const groupId = document.getElementById('groupId').value;
-    const groupName = document.getElementById('groupName').value.trim();
-    
-    if (!groupName) {
-        alert('⚠️ Vui lòng nhập tên nhóm');
-        return;
-    }
-    
-    console.log('💾 Saving group:', { groupId, groupName });
-    
-    try {
-        let response;
-        let successMessage;
-        
-        if (groupId) {
-            // CẬP NHẬT group hiện có
-            console.log('📝 Updating group:', groupId);
-            response = await fetch(`${CONFIG.API_URL}/groups/${groupId}`, {
-                method: 'PUT',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({ groupName })
-            });
-            successMessage = '✅ Cập nhật nhóm thành công!';
-        } else {
-            // TẠO MỚI group
-            console.log('➕ Creating new group');
-            response = await fetch(`${CONFIG.API_URL}/groups`, {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({ groupName })
-            });
-            successMessage = '✅ Tạo nhóm thành công!';
-        }
-        
-        const data = await response.json();
-        console.log('📥 Response:', data);
-        
-        if (data.status === 'success') {
-            closeModal('groupModal');
-            await loadGroups(); // Reload groups
-            alert(successMessage);
-        } else {
-            alert('❌ ' + (data.message || 'Có lỗi xảy ra'));
-        }
-    } catch (error) {
-        console.error('❌ Error saving group:', error);
-        alert('❌ Không thể lưu nhóm: ' + error.message);
     }
 }
 
@@ -253,25 +215,18 @@ async function saveStatusUpdate() {
 // ===== 2. GROUP FUNCTIONS =====
 
 /**
- * Mở modal để tạo nhóm mới
+ * Mở modal để tạo nhóm mới - FIXED VERSION
  */
-
-/**
- * Mở modal để tạo task mới - FIXED VERSION
- */
-function openCreateTaskModal() {
-    console.log('➕ Opening create task modal');
+function openCreateGroupModal() {
+    console.log('➕ Opening create group modal');
     
     // RESET FORM HOÀN TOÀN
-    document.getElementById('taskForm').reset();
-    document.getElementById('editTaskId').value = ''; // Clear hidden field
-    document.getElementById('taskModalTitle').textContent = '➕ Thêm công việc';
-    
-    // Load groups và populate select
-    loadGroups().then(() => populateGroupSelect(currentGroups));
+    document.getElementById('groupForm').reset();
+    document.getElementById('groupId').value = ''; // Clear hidden field
+    document.getElementById('groupModalTitle').textContent = '➕ Tạo nhóm mới';
     
     // Mở modal
-    openModal('taskModal');
+    openModal('groupModal');
 }
 
 /**
@@ -314,7 +269,7 @@ async function openEditGroupModal(groupId) {
 }
 
 /**
- * Lưu hoặc cập nhật nhóm
+ * Lưu hoặc cập nhật nhóm - FIXED VERSION WITH AUTO NAVIGATION
  */
 async function saveGroup() {
     const groupId = document.getElementById('groupId').value;
@@ -325,36 +280,61 @@ async function saveGroup() {
         return;
     }
     
+    console.log('💾 Saving group:', { groupId, groupName });
+    
     try {
         let response;
+        let successMessage;
         
         if (groupId) {
-            // Cập nhật group
+            // CẬP NHẬT group hiện có
+            console.log('📝 Updating group:', groupId);
             response = await fetch(`${CONFIG.API_URL}/groups/${groupId}`, {
                 method: 'PUT',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({ groupName })
             });
+            successMessage = '✅ Cập nhật nhóm thành công!';
         } else {
-            // Tạo group mới
+            // TẠO MỚI group
+            console.log('➕ Creating new group');
             response = await fetch(`${CONFIG.API_URL}/groups`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({ groupName })
             });
+            successMessage = '✅ Tạo nhóm thành công!';
         }
         
         const data = await response.json();
+        console.log('📥 Full API Response:', data);
+        console.log('📊 Response status:', response.status);
         
         if (data.status === 'success') {
             closeModal('groupModal');
-            loadGroups();
-            alert(groupId ? '✅ Cập nhật nhóm thành công!' : '✅ Tạo nhóm thành công!');
+            
+            // ✅ FIX: Chuyển sang trang Groups TRƯỚC KHI load
+            if (!groupId) {
+                console.log('📍 Switching to Groups page FIRST...');
+                document.querySelector('.nav-item[data-page="groups"]').click();
+                
+                // Đợi một chút để trang chuyển xong
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            // ✅ Reload groups
+            console.log('🔄 Reloading groups...');
+            await loadGroups();
+            console.log('✅ Groups reloaded successfully');
+            console.log('📦 Current groups array:', currentGroups);
+            
+            alert(successMessage);
         } else {
+            console.error('❌ API returned error:', data);
             alert('❌ ' + (data.message || 'Có lỗi xảy ra'));
         }
     } catch (error) {
-        console.error('Error saving group:', error);
+        console.error('❌ Error saving group:', error);
         alert('❌ Không thể lưu nhóm: ' + error.message);
     }
 }
@@ -417,12 +397,13 @@ async function leaveGroup(groupId) {
 // ===== 3. MEMBER FUNCTIONS =====
 
 /**
- * Mở modal quản lý thành viên
+ * Mở modal quản lý thành viên - FIXED
  */
 async function openMembersModal(groupId) {
     document.getElementById('currentGroupId').value = groupId;
     
     try {
+        // Load members của group
         const response = await fetch(`${CONFIG.API_URL}/groups/${groupId}/members`, {
             headers: getAuthHeaders()
         });
@@ -430,11 +411,15 @@ async function openMembersModal(groupId) {
         
         if (data.status === 'success') {
             currentGroupMembers = data.data.members;
-            displayMembers(currentGroupMembers, groupId);
+            
+            // Tìm thông tin group để biết ai là leader
+            const group = currentGroups.find(g => g.groupID == groupId);
+            
+            displayMembers(currentGroupMembers, groupId, group);
             openModal('membersModal');
             
-            // Setup search
-            setupMemberSearch(groupId);
+            // Setup dropdown select thay vì search
+            setupMemberDropdown(groupId);
         }
     } catch (error) {
         console.error('Error loading members:', error);
@@ -443,12 +428,12 @@ async function openMembersModal(groupId) {
 }
 
 /**
- * Hiển thị danh sách thành viên
+ * Hiển thị danh sách thành viên - FIXED WITH LEADER BADGE
  */
-function displayMembers(members, groupId) {
+function displayMembers(members, groupId, group) {
     const container = document.getElementById('membersList');
-    const group = currentGroups.find(g => g.groupID == groupId);
     const isLeader = group && group.role === 'leader';
+    const currentUser = getUser();
     
     if (members.length === 0) {
         container.innerHTML = `
@@ -460,7 +445,16 @@ function displayMembers(members, groupId) {
     }
     
     container.innerHTML = members.map(member => {
-        const isGroupLeader = group && group.truongnhom == member.id;
+        // ✅ FIX: Kiểm tra xem member có phải là trưởng nhóm không
+        // Trưởng nhóm là người có truongnhom == member.id HOẶC createdBy == member.id
+        const isGroupLeader = group && (
+            group.truongnhom == member.id || 
+            group.createdBy == member.id
+        );
+        
+        // Không được xóa bản thân hoặc nhóm trưởng
+        const canRemove = isLeader && !isGroupLeader && (member.id !== currentUser.id);
+        
         return `
         <div class="member-item">
             <div class="member-info">
@@ -469,10 +463,10 @@ function displayMembers(members, groupId) {
                     <div class="member-name">${escapeHtml(member.fullname)}</div>
                     <div class="member-username">@${escapeHtml(member.username)}</div>
                 </div>
-                ${isGroupLeader ? '<span class="member-badge">Trưởng nhóm</span>' : ''}
+                ${isGroupLeader ? '<span class="member-badge">👑 Trưởng nhóm</span>' : ''}
             </div>
-            ${isLeader && !isGroupLeader ? `
-                <button class="btn-remove" onclick="removeMember('${groupId}', '${member.id}')">Xóa</button>
+            ${canRemove ? `
+                <button class="btn-remove" onclick="removeMember('${groupId}', '${member.id}')">🗑️ Xóa</button>
             ` : ''}
         </div>
         `;
@@ -480,56 +474,60 @@ function displayMembers(members, groupId) {
 }
 
 /**
- * Cài đặt tìm kiếm thành viên
+ * Setup dropdown select để thêm member
  */
-function setupMemberSearch(groupId) {
-    const searchInput = document.getElementById('searchMember');
-    const resultsDiv = document.getElementById('searchResults');
+function setupMemberDropdown(groupId) {
+    const searchDiv = document.querySelector('.search-member');
     
-    searchInput.value = '';
+    // Lấy danh sách users chưa có trong group
+    const availableUsers = allUsers.filter(u => {
+        const isCurrentMember = currentGroupMembers.find(m => m.id === u.id);
+        return !isCurrentMember;
+    });
     
-    searchInput.oninput = (e) => {
-        const keyword = e.target.value.toLowerCase().trim();
-        
-        if (!keyword) {
-            resultsDiv.style.display = 'none';
-            return;
-        }
-        
-        // Filter users - loại bỏ members hiện tại
-        const filtered = allUsers.filter(u => {
-            const isCurrentMember = currentGroupMembers.find(m => m.id === u.id);
-            const matchesSearch = u.username.toLowerCase().includes(keyword) || 
-                                  u.fullname.toLowerCase().includes(keyword);
-            return !isCurrentMember && matchesSearch;
-        });
-        
-        if (filtered.length === 0) {
-            resultsDiv.innerHTML = '<div style="padding:10px; color:#95a5a6;">Không tìm thấy</div>';
-            resultsDiv.style.display = 'block';
-            return;
-        }
-        
-        resultsDiv.innerHTML = filtered.map(user => `
-            <div class="search-result-item" onclick="addMemberToGroup('${groupId}', '${user.id}')">
-                <div class="member-avatar" style="width:30px; height:30px; font-size:14px;">
-                    ${user.fullname.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                    <div style="font-weight:600; font-size:13px;">${escapeHtml(user.fullname)}</div>
-                    <div style="font-size:11px; color:#7f8c8d;">@${escapeHtml(user.username)}</div>
-                </div>
+    // Tạo dropdown select thay vì search input
+    searchDiv.innerHTML = `
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">
+            ➕ Thêm thành viên mới:
+        </label>
+        <select id="addMemberSelect" class="form-control" style="margin-bottom: 15px;">
+            <option value="">-- Chọn người dùng để thêm --</option>
+            ${availableUsers.map(user => `
+                <option value="${user.id}">
+                    ${escapeHtml(user.fullname)} (@${escapeHtml(user.username)})
+                </option>
+            `).join('')}
+        </select>
+        <button 
+            class="btn-primary" 
+            style="width: 100%; padding: 12px;" 
+            onclick="addMemberFromDropdown('${groupId}')"
+        >
+            ➕ Thêm thành viên
+        </button>
+    `;
+    
+    if (availableUsers.length === 0) {
+        searchDiv.innerHTML = `
+            <div style="padding: 15px; background: #f8f9fa; border-radius: 8px; text-align: center; color: #7f8c8d;">
+                ✅ Đã thêm tất cả người dùng vào nhóm
             </div>
-        `).join('');
-        
-        resultsDiv.style.display = 'block';
-    };
+        `;
+    }
 }
 
 /**
- * Thêm thành viên vào nhóm
+ * Thêm member từ dropdown
  */
-async function addMemberToGroup(groupId, userId) {
+async function addMemberFromDropdown(groupId) {
+    const select = document.getElementById('addMemberSelect');
+    const userId = select.value;
+    
+    if (!userId) {
+        alert('⚠️ Vui lòng chọn người dùng');
+        return;
+    }
+    
     try {
         const response = await fetch(`${CONFIG.API_URL}/groups/${groupId}/members`, {
             method: 'POST',
@@ -540,10 +538,8 @@ async function addMemberToGroup(groupId, userId) {
         const data = await response.json();
         
         if (data.status === 'success') {
-            document.getElementById('searchMember').value = '';
-            document.getElementById('searchResults').style.display = 'none';
-            await openMembersModal(groupId); // Reload
             alert('✅ Thêm thành viên thành công!');
+            await openMembersModal(groupId); // Reload modal
         } else {
             alert('❌ ' + (data.message || 'Không thể thêm thành viên'));
         }
@@ -584,7 +580,7 @@ async function removeMember(groupId, userId) {
 // ===== 4. TASK ASSIGNMENT FUNCTIONS =====
 
 /**
- * Mở modal để giao task cho thành viên
+ * Mở modal để giao task cho thành viên - FIXED: Loại bỏ nhóm trưởng
  */
 async function openAssignModal(taskId) {
     assigningTaskId = taskId;
@@ -606,13 +602,22 @@ async function openAssignModal(taskId) {
         
         if (membersData.status === 'success') {
             const members = membersData.data.members;
+            const currentUser = getUser();
+            
+            // ✅ FIX: Lọc bỏ nhóm trưởng (người đang đăng nhập) khỏi danh sách
+            const membersExceptLeader = members.filter(m => m.id != currentUser.id);
             
             // Populate select
             const select = document.getElementById('assignUserSelect');
-            select.innerHTML = '<option value="">-- Chọn thành viên --</option>' +
-                members.map(m => 
-                    `<option value="${m.id}">${escapeHtml(m.fullname)} (@${escapeHtml(m.username)})</option>`
-                ).join('');
+            
+            if (membersExceptLeader.length === 0) {
+                select.innerHTML = '<option value="">-- Không có thành viên để giao --</option>';
+            } else {
+                select.innerHTML = '<option value="">-- Chọn thành viên --</option>' +
+                    membersExceptLeader.map(m => 
+                        `<option value="${m.id}">${escapeHtml(m.fullname)} (@${escapeHtml(m.username)})</option>`
+                    ).join('');
+            }
         }
         
         // Load danh sách người đã được giao
@@ -713,9 +718,6 @@ async function loadTaskAssignees(taskId) {
 /**
  * Hiển thị danh sách người được giao task
  */
-/**
- * Hiển thị danh sách người được giao task
- */
 function displayAssignees(assignees) {
     const container = document.getElementById('assigneesList');
     
@@ -741,113 +743,4 @@ function displayAssignees(assignees) {
             <button class="btn-remove" onclick="unassignUser(${assigningTaskId}, '${assignee.id}')">🗑️ Hủy</button>
         </div>
     `).join('');
-}
-
-// ===== DISPLAY FUNCTIONS =====
-
-/**
- * Hiển thị danh sách nhóm với các nút action
- */
-function displayGroups(groups) {
-    const container = document.getElementById('groupsList');
-    
-    if (groups.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <h3>👥 Chưa có nhóm</h3>
-                <p>Tạo nhóm mới để làm việc nhóm!</p>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = groups.map(group => `
-        <div class="group-card">
-            <div class="group-name">${escapeHtml(group.groupName)}</div>
-            <div class="group-info">
-                ${group.role === 'leader' ? '👑' : '👤'} 
-                ${group.role === 'leader' ? 'Bạn là trưởng nhóm' : 'Thành viên'}
-            </div>
-            ${group.memberCount ? `<div class="group-info">👨‍👩‍👧‍👦 ${group.memberCount} thành viên</div>` : ''}
-            
-            <div class="group-actions">
-                <button class="btn-group-action btn-members" onclick="openMembersModal('${group.groupID}')" title="Quản lý thành viên">
-                    👥 Thành viên
-                </button>
-                
-                ${group.role === 'leader' ? `
-                    <button class="btn-group-action btn-edit" onclick="openEditGroupModal('${group.groupID}')" title="Sửa nhóm">
-                        ✏️ Sửa
-                    </button>
-                    <button class="btn-group-action btn-delete" onclick="deleteGroup('${group.groupID}')" title="Xóa nhóm">
-                        🗑️ Xóa
-                    </button>
-                ` : `
-                    <button class="btn-group-action btn-leave" onclick="leaveGroup('${group.groupID}')" title="Rời khỏi nhóm">
-                        🚪 Rời
-                    </button>
-                `}
-            </div>
-        </div>
-    `).join('');
-}
-
-/**
- * Hiển thị danh sách task với các nút action
- */
-function displayTasks(tasks) {
-    const container = document.getElementById('tasksList');
-    
-    if (tasks.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <h3>📝 Chưa có công việc</h3>
-                <p>Thêm công việc đầu tiên của bạn!</p>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = tasks.map(task => {
-        let statusClass = 'status-pending';
-        if (task.status === 'In Progress') statusClass = 'status-progress';
-        if (task.status === 'Completed') statusClass = 'status-completed';
-        
-        // Fallback cho taskid - có thể là taskid, taskID, id, task_id
-        const taskId = task.taskid || task.taskID || task.task_id;
-        
-        return `
-        <div class="task-card">
-            <div class="task-header">
-                <div>
-                    <div class="task-title">${escapeHtml(task.taskname)}</div>
-                    <div class="task-priority">${'⭐'.repeat(task.priority)}</div>
-                </div>
-            </div>
-            <div class="task-description">${escapeHtml(task.description) || 'Không có mô tả'}</div>
-            ${task.groupName ? `<div class="task-meta">
-                <div class="task-meta-item">👥 ${escapeHtml(task.groupName)}</div>
-            </div>` : ''}
-            <div class="task-footer">
-                <span class="task-status ${statusClass}">${task.status}</span>
-                <div class="task-actions">
-                    ${task.groupID ? `
-                        <button class="btn-icon" onclick="openAssignModal('${taskId}')" title="Giao việc cho thành viên">
-                            👥
-                        </button>
-                    ` : ''}
-                    <button class="btn-icon" onclick="openEditTaskModal('${taskId}')" title="Sửa">
-                        ✏️
-                    </button>
-                    <button class="btn-icon" onclick="deleteTask('${taskId}')" title="Xóa">
-                        🗑️
-                    </button>
-                    <button class="btn-icon" onclick="openUpdateStatusModal('${taskId}')" title="Cập nhật trạng thái">
-                        🔄
-                    </button>
-                </div>
-            </div>
-        </div>
-        `;
-    }).join('');
 }

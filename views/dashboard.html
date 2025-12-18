@@ -184,31 +184,32 @@
         </div>
     </div>
 
-    <!-- Modal Quản lý thành viên -->
-    <div id="membersModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="membersModalTitle">Thành viên nhóm</h2>
-                <span class="close" onclick="closeModal('membersModal')">&times;</span>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="currentGroupId">
-                
-                <!-- Search members -->
-                <div class="search-member">
-                    <input type="text" id="searchMember" class="form-control" placeholder="🔍 Tìm thành viên để thêm...">
-                    <div id="searchResults" class="search-results" style="display:none;"></div>
+    <!-- Modal Quản lý thành viên - UPDATED -->
+        <div id="membersModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="membersModalTitle">Thành viên nhóm</h2>
+                    <span class="close" onclick="closeModal('membersModal')">&times;</span>
                 </div>
+                <div class="modal-body">
+                    <input type="hidden" id="currentGroupId">
+                    
+                    <!-- ✅ THAY THẾ search input bằng dropdown select -->
+                    <div class="search-member">
+                        <!-- Nội dung sẽ được tạo động bởi setupMemberDropdown() -->
+                    </div>
 
-                <!-- Members list -->
-                <h3 style="margin: 20px 0 10px 0; font-size: 16px;">Danh sách thành viên:</h3>
-                <div id="membersList" class="members-list"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeModal('membersModal')">Đóng</button>
+                    <!-- Danh sách thành viên -->
+                    <h3 style="margin: 20px 0 10px 0; font-size: 16px; color: #2c3e50; font-weight: 600;">
+                        👥 Danh sách thành viên:
+                    </h3>
+                    <div id="membersList" class="members-list"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeModal('membersModal')">Đóng</button>
+                </div>
             </div>
         </div>
-    </div>
 
     <!-- Modal Assign Task -->
     <div id="assignModal" class="modal">
