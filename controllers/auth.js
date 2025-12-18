@@ -1,6 +1,6 @@
 // controllers/auth.js
 
-exports.register = async (req, res) => {
+exports.register = async (req, res, next) => {
     try {
         const { username, password, email } = req.body;
 
@@ -11,14 +11,13 @@ exports.register = async (req, res) => {
             data: { username, email }
         });
     } catch (err) {
-        return res.status(500).json({
-            status: "error",
-            message: err.message
-        });
+        err.statusCode = 500;
+        err.msg = err.message || 'Register failed';
+        next(err);
     }
 };
 
-exports.login = async (req, res) => {
+exports.login = async (req, res, next) => {
     try {
         const { username, password } = req.body;
 
@@ -29,9 +28,8 @@ exports.login = async (req, res) => {
             token: "fake-jwt-token"
         });
     } catch (err) {
-        return res.status(500).json({
-            status: "error",
-            message: err.message
-        });
+        err.statusCode = 500;
+        err.msg = err.message || 'Login failed';
+        next(err);
     }
 };

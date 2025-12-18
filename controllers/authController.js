@@ -8,49 +8,50 @@ const {
     validateFullname
 } = require('../utils/validator');
 
-exports.register = async (req, res) => {
+exports.register = async (req, res, next) => {
     const connection = await db.getConnection();
     
     try {
         const { username, fullname, email, password } = req.body;
+        console.log('REGISTER BODY:', req.body);
 
         // Validation
         if (!username || !fullname || !email || !password) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vui lòng điền đầy đủ thông tin'
-            });
+            const err =     new Error();
+            err.statusCode = 400;
+            err.msg = 'Vui lòng điền đầy đủ thông tin';
+            return next(err);
         }
 
         const usernameValidation = validateUsername(username);
         if (!usernameValidation.valid) {
-            return res.status(400).json({
-                success: false,
-                message: usernameValidation.message
-            });
+            const err = new Error();
+            err.statusCode = 400;
+            err.msg = usernameValidation.message;
+            return next(err);
         }
 
         const fullnameValidation = validateFullname(fullname);
         if (!fullnameValidation.valid) {
-            return res.status(400).json({
-                success: false,
-                message: fullnameValidation.message
-            });
+            const err = new Error();
+            err.statusCode = 400;
+            err.msg = fullnameValidation.message;
+            return next(err);
         }
 
         if (!validateEmail(email)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Email không hợp lệ'
-            });
+            const err = new Error();
+            err.statusCode = 400;
+            err.msg = 'Email không hợp lệ';
+            return next(err);
         }
 
         const passwordValidation = validatePassword(password);
         if (!passwordValidation.valid) {
-            return res.status(400).json({
-                success: false,
-                message: passwordValidation.message
-            });
+            const err = new Error();
+            err.statusCode = 400;
+            err.msg = passwordValidation.message;
+            return next(err);
         }
 
         // Kiểm tra user đã tồn tại
@@ -106,18 +107,15 @@ exports.register = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Lỗi đăng ký:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Đã xảy ra lỗi, vui lòng thử lại sau',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        error.statusCode = error.statusCode || 500;
+        error.msg = error.msg || 'Đã xảy ra lỗi, vui lòng thử lại sau';
+        next(error);
     } finally {
         connection.release();
     }
 };
 
-exports.login = async (req, res) => {
+exports.login = async (req, res, next) => {
     const connection = await db.getConnection();
     
     try {
@@ -125,10 +123,9 @@ exports.login = async (req, res) => {
 
         // Validation
         if (!username || !password) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vui lòng nhập username và mật khẩu'
-            });
+            const err = new Error('Vui lòng nhập username và mật khẩu');
+            err.statusCode = 400;
+            return next(err);
         }
 
         // Tìm user
@@ -138,10 +135,9 @@ exports.login = async (req, res) => {
         );
 
         if (users.length === 0) {
-            return res.status(401).json({
-                success: false,
-                message: 'Tên đăng nhập hoặc mật khẩu không đúng'
-            });
+            const err = new Error('Tên đăng nhập hoặc mật khẩu không đúng');
+            err.statusCode = 401;
+            return next(err);
         }
 
         const user = users[0];
@@ -150,10 +146,9 @@ exports.login = async (req, res) => {
         const isPasswordValid = await comparePassword(password, user.password);
 
         if (!isPasswordValid) {
-            return res.status(401).json({
-                success: false,
-                message: 'Tên đăng nhập hoặc mật khẩu không đúng'
-            });
+            const err = new Error('Tên đăng nhập hoặc mật khẩu không đúng');
+            err.statusCode = 401;
+            return next(err);
         }
 
         // Tạo JWT token
@@ -178,18 +173,15 @@ exports.login = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Lỗi đăng nhập:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Đã xảy ra lỗi, vui lòng thử lại sau',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        error.statusCode = error.statusCode || 500;
+        error.msg = error.msg || 'Đã xảy ra lỗi, vui lòng thử lại sau';
+        next(error);
     } finally {
         connection.release();
     }
 };
 
-exports.getMe = async (req, res) => {
+exports.getMe = async (req, res, next) => {
     const connection = await db.getConnection();
     
     try {
@@ -199,10 +191,9 @@ exports.getMe = async (req, res) => {
         );
 
         if (users.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Không tìm thấy thông tin người dùng'
-            });
+            const err = new Error('Không tìm thấy thông tin người dùng');
+            err.statusCode = 404;
+            return next(err);
         }
 
         res.json({
@@ -213,17 +204,15 @@ exports.getMe = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Lỗi lấy thông tin user:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Đã xảy ra lỗi'
-        });
+        error.statusCode = error.statusCode || 500;
+        error.msg = error.msg || 'Đã xảy ra lỗi';
+        next(error);
     } finally {
         connection.release();
     }
 };
 
-exports.updateProfile = async (req, res) => {
+exports.updateProfile = async (req, res, next) => {
     const connection = await db.getConnection();
     
     try {
@@ -236,10 +225,9 @@ exports.updateProfile = async (req, res) => {
         if (fullname) {
             const validation = validateFullname(fullname);
             if (!validation.valid) {
-                return res.status(400).json({
-                    success: false,
-                    message: validation.message
-                });
+                const err = new Error(validation.message);
+                err.statusCode = 400;
+                return next(err);
             }
             updates.push('fullname = ?');
             params.push(fullname.trim());
@@ -247,10 +235,9 @@ exports.updateProfile = async (req, res) => {
 
         if (email) {
             if (!validateEmail(email)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Email không hợp lệ'
-                });
+                const err = new Error('Email không hợp lệ');
+                err.statusCode = 400;
+                return next(err);
             }
 
             const [existingUsers] = await connection.query(
@@ -259,10 +246,9 @@ exports.updateProfile = async (req, res) => {
             );
 
             if (existingUsers.length > 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Email đã được sử dụng'
-                });
+                const err = new Error('Email đã được sử dụng');
+                err.statusCode = 400;
+                return next(err);
             }
 
             updates.push('email = ?');
@@ -270,10 +256,9 @@ exports.updateProfile = async (req, res) => {
         }
 
         if (updates.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Không có dữ liệu để cập nhật'
-            });
+              const err = new Error('Không có dữ liệu để cập nhật');
+            err.statusCode = 400;
+            return next(err);
         }
 
         params.push(userId);
@@ -297,17 +282,15 @@ exports.updateProfile = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Lỗi cập nhật profile:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Đã xảy ra lỗi'
-        });
+          error.statusCode = error.statusCode || 500;
+        error.msg = error.msg || 'Đã xảy ra lỗi';
+        next(error);
     } finally {
         connection.release();
     }
 };
 
-exports.changePassword = async (req, res) => {
+exports.changePassword = async (req, res, next) => {
     const connection = await db.getConnection();
     
     try {
@@ -315,18 +298,16 @@ exports.changePassword = async (req, res) => {
         const userId = req.userId;
 
         if (!currentPassword || !newPassword) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vui lòng điền đầy đủ thông tin'
-            });
+           const err = new Error('Vui lòng điền đầy đủ thông tin');
+            err.statusCode = 400;
+            return next(err);
         }
 
         const validation = validatePassword(newPassword);
         if (!validation.valid) {
-            return res.status(400).json({
-                success: false,
-                message: validation.message
-            });
+            const err = new Error(validation.message);
+            err.statusCode = 400;
+            return next(err);
         }
 
         const [users] = await connection.query(
@@ -335,19 +316,17 @@ exports.changePassword = async (req, res) => {
         );
 
         if (users.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Không tìm thấy người dùng'
-            });
+            const err = new Error('Không tìm thấy người dùng');
+            err.statusCode = 404;
+            return next(err);
         }
 
         const isPasswordValid = await comparePassword(currentPassword, users[0].password);
 
         if (!isPasswordValid) {
-            return res.status(401).json({
-                success: false,
-                message: 'Mật khẩu hiện tại không đúng'
-            });
+            const err = new Error('Mật khẩu hiện tại không đúng');
+            err.statusCode = 401;
+            return next(err);
         }
 
         const hashedPassword = await hashPassword(newPassword);
@@ -363,11 +342,9 @@ exports.changePassword = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Lỗi đổi mật khẩu:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Đã xảy ra lỗi'
-        });
+        error.statusCode = error.statusCode || 500;
+        error.msg = error.msg || 'Đã xảy ra lỗi';
+        next(error);
     } finally {
         connection.release();
     }

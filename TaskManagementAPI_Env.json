@@ -1,0 +1,41 @@
+{
+  "id": "env-task-api",
+  "name": "Task Management API Env",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "enabled": true
+    },
+    {
+      "key": "username",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "email",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "token",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "groupId",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "taskId",
+      "value": "",
+      "enabled": true
+    }
+  ]
+}

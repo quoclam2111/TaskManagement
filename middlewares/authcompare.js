@@ -7,21 +7,20 @@ const authMiddleware = async (req, res, next) => {
     const token = authHeader?.split(' ')[1];
     
     if (!authHeader || !token) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Token không được cung cấp' 
-      });
+      const err = new Error();
+      err.statusCode = 401;
+      err.msg = 'Token không được cung cấp';
+      return next(err);
     }
 
     // ⚠️ Verify token trả về object {valid, decoded} hoặc {valid, error}
     const result = verifyToken(token);
     
     if (!result.valid) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Token không hợp lệ hoặc đã hết hạn',
-        error: result.error?.message || 'Invalid token'
-      });
+      const err = new Error(result.error?.message || 'Invalid token');
+      err.statusCode = 401;
+      err.msg = 'Token không hợp lệ hoặc đã hết hạn';
+      return next(err);
     }
 
     const decoded = result.decoded;
@@ -30,10 +29,10 @@ const authMiddleware = async (req, res, next) => {
     const user = await User.findById(decoded.userId);
     
     if (!user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'User không tồn tại' 
-      });
+      const err = new Error();
+      err.statusCode = 401;
+      err.msg = 'User không tồn tại';
+      return next(err);
     }
 
     // ⚠️ Set req.user với UUID
@@ -49,12 +48,9 @@ const authMiddleware = async (req, res, next) => {
     
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Xác thực thất bại',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    error.statusCode = 401;
+    error.msg = 'Xác thực thất bại';
+    next(error);
   }
 };
 

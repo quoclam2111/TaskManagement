@@ -12,17 +12,17 @@ if (!process.env.API_TOKEN) {
 api_token_middleware.use((req, res, next) => {
     const apiToken = req.headers['x-api-token'];
     if (!apiToken) {
-        return res.status(400).json({
-            success: false,
-            msg: "Missing API Token"
-        });
+        const err = new Error();
+        err.statusCode = 400;
+        err.msg = 'Missing API Token';
+        return next(err);
     }
 
     if (apiToken !== process.env.API_TOKEN) {
-        return res.status(401).json({
-            success: false,
-            msg: "Unauthorized: Invalid API Token"
-        });
+       const err = new Error();
+        err.statusCode = 401;
+        err.msg = 'Unauthorized: Invalid API Token';
+        return next(err);
     }
     next();
 });

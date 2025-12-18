@@ -5,10 +5,10 @@ const authMiddleware = (req, res, next) => {
         const authHeader = req.headers.authorization;
         
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({
-                success: false,
-                message: 'Vui lòng đăng nhập để tiếp tục'
-            });
+            const err = new Error();
+            err.statusCode = 401;
+            err.msg = 'Vui lòng đăng nhập để tiếp tục';
+            return next(err);
         }
 
         const token = authHeader.split(' ')[1];
@@ -16,13 +16,14 @@ const authMiddleware = (req, res, next) => {
 
         if (!result.valid) {
             let message = 'Token không hợp lệ';
-            if (result.error.includes('expired')) {
+            if (result.error?.includes('expired')) {
                 message = 'Phiên đăng nhập đã hết hạn';
             }
-            return res.status(401).json({
-                success: false,
-                message
-            });
+
+            const err = new Error();
+            err.statusCode = 401;
+            err.msg = message;
+            return next(err);
         }
 
         req.userId = result.decoded.userId;
@@ -31,11 +32,9 @@ const authMiddleware = (req, res, next) => {
         
         next();
     } catch (error) {
-        console.error('Auth middleware error:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Lỗi xác thực'
-        });
+        error.statusCode = 500;
+        error.msg = 'Lỗi xác thực';
+        next(error);
     }
 };
 

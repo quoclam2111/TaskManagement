@@ -1,0 +1,255 @@
+{
+  "info": {
+    "name": "Task Management API - Fixed Tests",
+    "_postman_id": "9b8c7a6d-abcdef-1234-5678-abcdef123456",
+    "description": "Postman collection for Task Management API with corrected test assertions",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Tạo username/email duy nhất theo timestamp",
+                  "const timestamp = Date.now();",
+                  "pm.environment.set('username', `testuser${timestamp}`);",
+                  "pm.environment.set('fullname', `Test User`);",
+                  "pm.environment.set('email', `test${timestamp}@example.com`);",
+                  "pm.environment.set('password', '123456');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Register successful', function() {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.success).to.be.true;",
+                  "    pm.expect(res.data).to.have.property('user');",
+                  "    pm.expect(res.data.user).to.have.property('id');",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.environment.set('userId', res.data.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"fullname\": \"{{fullname}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","auth","register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","auth","login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login successful', function() {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.success).to.be.true;",
+                  "    pm.expect(res.data).to.have.property('token');",
+                  "    pm.expect(res.data).to.have.property('user');",
+                  "    pm.expect(res.data.user).to.have.property('id');",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.environment.set('token', res.data.token);",
+                  "pm.environment.set('userId', res.data.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","auth","me"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get Me successful', function() {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.success).to.be.true;",
+                  "    pm.expect(res.data).to.have.property('user');",
+                  "    pm.expect(res.data.user).to.have.property('id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Groups",
+      "item": [
+        {
+          "name": "Create Group",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupName\": \"Test Group {{$timestamp}}\",\n  \"truongnhom\": \"{{userId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/groups",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","groups"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Group created successfully', function() {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.success).to.be.true;",
+                  "    pm.expect(res.data).to.have.property('group');",
+                  "    pm.expect(res.data.group).to.have.property('groupID');",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.environment.set('groupId', res.data.group.groupID);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Groups",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","groups"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get My Groups successful', function() {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.success).to.be.true;",
+                  "    pm.expect(res.data).to.have.property('groups');",
+                  "    pm.expect(Array.isArray(res.data.groups)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskname\": \"Test Task {{$timestamp}}\",\n  \"description\": \"Demo task\",\n  \"priority\": 3,\n  \"status\": \"Pending\",\n  \"groupID\": \"{{groupId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","tasks","create"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": [
+                "pm.test('Task created successfully', function() {",
+                "    const res = pm.response.json();",
+                "    pm.expect(res.success).to.be.true;",
+                "    pm.expect(res.data).to.have.property('task');",
+                "    pm.expect(res.data.task).to.have.property('id');",
+                "});",
+                "const res = pm.response.json();",
+                "pm.environment.set('taskId', res.data.task.id);"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Get My Tasks",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","tasks"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": [
+                "pm.test('Get My Tasks successful', function() {",
+                "    const res = pm.response.json();",
+                "    pm.expect(res.success).to.be.true;",
+                "    pm.expect(res.data).to.have.property('tasks');",
+                "    pm.expect(Array.isArray(res.data.tasks)).to.be.true;",
+                "});"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
