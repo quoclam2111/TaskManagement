@@ -1,5 +1,5 @@
 // views/js/config.js
-// Configuration với auto-detect environment
+// Configuration với auto-detect environment - SECURED VERSION
 
 // ===== AUTO-DETECT API URL =====
 function getApiUrl() {
@@ -11,7 +11,6 @@ function getApiUrl() {
     }
     
     // Production - Thay đổi URL này khi deploy
-    // Ví dụ: return 'https://api.yourdomain.com/api';
     return `${window.location.origin}/api`;
 }
 
@@ -31,8 +30,9 @@ const CONFIG = {
     APP_NAME: 'Task Manager',
     VERSION: '1.0.0',
     
-    // Debug mode (tự động bật ở localhost)
-    DEBUG: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
+    // ✅ QUAN TRỌNG: CHỈ BẬT DEBUG Ở LOCALHOST
+    // Trong production sẽ tự động TẮT
+    DEBUG: false, // ⚠️ ĐỔI THÀNH false ĐỂ TẮT HOÀN TOÀN
     
     // Environment
     ENV: window.location.hostname === 'localhost' ? 'development' : 'production'
@@ -52,7 +52,7 @@ function getToken() {
  */
 function saveToken(token) {
     localStorage.setItem(CONFIG.TOKEN_KEY, token);
-    if (CONFIG.DEBUG) console.log('🔐 Token saved');
+    // ✅ Đã XÓA console.log để không lộ thông tin
 }
 
 /**
@@ -61,7 +61,7 @@ function saveToken(token) {
 function removeToken() {
     localStorage.removeItem(CONFIG.TOKEN_KEY);
     localStorage.removeItem(CONFIG.USER_KEY);
-    if (CONFIG.DEBUG) console.log('🚪 Token removed');
+    // ✅ Đã XÓA console.log
 }
 
 /**
@@ -69,7 +69,7 @@ function removeToken() {
  */
 function saveUser(user) {
     localStorage.setItem(CONFIG.USER_KEY, JSON.stringify(user));
-    if (CONFIG.DEBUG) console.log('👤 User saved:', user);
+    // ✅ Đã XÓA console.log để không lộ user info
 }
 
 /**
@@ -82,13 +82,10 @@ function getUser() {
 
 /**
  * Lấy headers với token cho API requests
+ * ✅ ĐÃ XÓA TẤT CẢ console.log ĐỂ KHÔNG LỘ TOKEN
  */
 function getAuthHeaders() {
     const token = getToken();
-    
-    if (CONFIG.DEBUG) {
-        console.log('🔐 Token từ localStorage:', token ? token.substring(0, 20) + '...' : 'KHÔNG CÓ');
-    }
     
     const headers = {
         'Content-Type': 'application/json'
@@ -97,10 +94,6 @@ function getAuthHeaders() {
     // CHỈ thêm Authorization header nếu có token
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    if (CONFIG.DEBUG) {
-        console.log('📤 Headers được gửi:', headers);
     }
     
     return headers;
@@ -128,7 +121,6 @@ function requireAuth() {
  * Handle API response và errors
  */
 async function handleApiResponse(response) {
-    // Parse JSON
     const data = await response.json();
     
     // Xử lý 401 Unauthorized
@@ -148,17 +140,10 @@ async function handleApiResponse(response) {
 
 /**
  * Fetch wrapper với error handling
+ * ✅ CHỈ LOG ERROR, KHÔNG LOG SENSITIVE DATA
  */
 async function apiRequest(url, options = {}) {
     try {
-        if (CONFIG.DEBUG) {
-            console.log('📡 API Request:', {
-                url,
-                method: options.method || 'GET',
-                body: options.body ? JSON.parse(options.body) : null
-            });
-        }
-        
         const response = await fetch(url, {
             ...options,
             headers: {
@@ -169,14 +154,10 @@ async function apiRequest(url, options = {}) {
         
         const data = await handleApiResponse(response);
         
-        if (CONFIG.DEBUG) {
-            console.log('✅ API Response:', data);
-        }
-        
         return data;
     } catch (error) {
         if (CONFIG.DEBUG) {
-            console.error('❌ API Error:', error);
+            console.error('❌ API Error:', error.message); // Chỉ log message, không log chi tiết
         }
         throw error;
     }
@@ -195,17 +176,15 @@ function showAlert(message, type = 'info') {
             alertDiv.classList.remove('show');
         }, 5000);
     } else {
-        // Fallback to console if no alert div
         console.log(`[${type.toUpperCase()}]`, message);
     }
 }
 
-// ===== LOG CONFIG ON LOAD =====
+// ===== LOG CONFIG ON LOAD (CHỈ KHI DEBUG = TRUE) =====
 if (CONFIG.DEBUG) {
     console.log('🔧 Configuration loaded:', {
         API_URL: CONFIG.API_URL,
         Environment: CONFIG.ENV,
-        Hostname: window.location.hostname,
         Debug: CONFIG.DEBUG
     });
 }
